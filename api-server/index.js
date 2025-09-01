@@ -1,10 +1,25 @@
 const express = require("express");
+require("dotenv").config();
 const { generateSlug } = require("random-word-slugs");
 const { ECSClient, RunTaskCommand } = require("@aws-sdk/client-ecs");
-require("dotenv").config();
+const { Server } = require("socket.io");
+const Redis = require("ioredis");
 
 const app = express();
 const PORT = 9000;
+
+const subscriber = new Redis(process.env.SERVICE_URI);
+
+const io = new Server({ cors: "*" });
+
+io.on("connection", (socket) => {
+  socket.on("subscribe", (channel) => {
+    socket.join(channel);
+    socket.emit("message", `Joined ${channel}`);
+  });
+});
+
+io.listen(9002, () => console.log("Socket Server 9002"));
 
 const ecsClient = new ECSClient({
   region: process.env.S3_REGION,
@@ -56,6 +71,7 @@ app.post("/project", async (req, res) => {
             },
             { name: "S3_BUCKET_NAME", value: process.env.S3_BUCKET_NAME },
             { name: "S3_REGION", value: process.env.S3_REGION },
+            { name: "SERVICE_URI", value: process.env.SERVICE_URI },
           ],
         },
       ],
@@ -69,5 +85,15 @@ app.post("/project", async (req, res) => {
     data: { projectSlug, url: `http://${projectSlug}.localhost:8000` },
   });
 });
+
+async function initRedisSubscribe() {
+  console.log("Subscribed to logs....");
+  subscriber.psubscribe("logs:*");
+  subscriber.on("pmessage", (pattern, channel, message) => {
+    io.to(channel).emit("message", message);
+  });
+}
+
+initRedisSubscribe();
 
 app.listen(PORT, () => console.log(`API Server Running..${PORT}`));
