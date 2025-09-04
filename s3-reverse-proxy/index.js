@@ -1,5 +1,8 @@
 const express = require("express");
 const httpProxy = require("http-proxy");
+const { PrismaClient } = require("@prisma/client");
+
+const prisma = new PrismaClient({});
 
 const app = express();
 const PORT = 8000;
@@ -9,13 +12,19 @@ const BASE_PATH =
 
 const proxy = httpProxy.createProxy();
 
-app.use((req, res) => {
+app.use(async (req, res) => {
   const hostname = req.hostname;
   const subdomain = hostname.split(".")[0];
 
-  // Custom Domain - DB Query
+  const project = await prisma.project.findFirst({
+    where: { subDomain: subdomain },
+  });
 
-  const resolvesTo = `${BASE_PATH}/${subdomain}`;
+  if (!project) {
+    return res.status(404).send("Project not found");
+  }
+
+  const resolvesTo = `${BASE_PATH}/${project.id}`;
 
   return proxy.web(req, res, { target: resolvesTo, changeOrigin: true });
 });
