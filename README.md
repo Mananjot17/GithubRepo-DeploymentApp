@@ -40,4 +40,4 @@ Users can access their deployed application through a proxy server, while build 
 ---
 
 
-<img width="1536" height="1024" alt="ChatGPT Image Sep 6, 2025, 04_17_17 PM" src="https://github.com/user-attachments/assets/5f363223-e33e-48f9-9240-0cd78eb9ad9c" />
+<img width="1100" height="800" alt="ChatGPT Image Sep 6, 2025, 04_17_17 PM" src="https://github.com/user-attachments/assets/5f363223-e33e-48f9-9240-0cd78eb9ad9c" />
