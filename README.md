@@ -40,66 +40,55 @@ Users can access their deployed application through a proxy server, while build 
 ---
 
 
+```mermaid
 graph TD
-    subgraph User Interaction
+    subgraph "User & API Layer"
         User[👨‍💻 User]
+        APIServer[🌐 API Server (Node.js)]
     end
 
-    subgraph API & Orchestration
-        APIServer[🌐 API Server (Node.js)]
+    subgraph "Build & Deployment Pipeline (AWS)"
         ECS[⚙️ AWS ECS (Fargate)]
         ECR[📦 AWS ECR]
+        BuilderContainer["Ephemeral Builder Container"]
+        S3[🗂️ AWS S3 Bucket<br/>(Stores Build Artifacts)]
     end
 
-    subgraph Build & Deployment
-        subgraph "ECS Task (Ephemeral)"
-            direction LR
-            BuilderContainer[🔧 Builder Container]
-        end
-        GitHub[☁️ GitHub]
-        S3[🗂️ AWS S3 (Artifacts)]
+    subgraph "Real-time Logging Pipeline"
+        Kafka[🔴 Kafka Topic]
+        LogConsumer[📜 Log Consumer Service]
+        ClickHouse[💾 ClickHouse Database]
     end
 
-    subgraph Logging Pipeline
-        Kafka[🔴 Kafka (Log Stream)]
-        KafkaConsumer[ Verbraucher]
-        ClickHouse[💾 ClickHouse (Log Storage)]
+    subgraph "Serving Layer"
+        ProxyServer[🔄 Reverse Proxy Server]
     end
 
-    subgraph Serving Deployed App
-        ProxyServer[🔄 Proxy Server]
-        S3_Deployed[🗂️ AWS S3 (Deployed App)]
-    end
+    %% --- WORKFLOW ---
 
-    %% User to API
-    User -- "1. Submits GitHub URL" --> APIServer
+    %% 1. Deployment Request
+    User -- "1. POST /deploy {repoUrl}" --> APIServer
 
-    %% API to ECS
+    %% 2. Build Trigger
     APIServer -- "2. Triggers ECS Task" --> ECS
+    ECS -- "3. Pulls image" --> ECR
+    ECS -- "4. Runs Builder Container" --> BuilderContainer
 
-    %% ECS, ECR, and the Builder
-    ECS -- "3. Pulls Image" --> ECR
-    ECS -- "4. Runs Container" --> BuilderContainer
+    %% 3. In-Container Build Process
+    BuilderContainer -- "5. Clones code" --> GitHub((☁️ GitHub Repo))
+    BuilderContainer -- "6. Streams build logs" --> Kafka
+    BuilderContainer -- "7. Uploads build output ('dist/')" --> S3
 
-    %% Builder's Workflow
-    BuilderContainer -- "5. Clones Repo" --> GitHub
-    BuilderContainer -- "6. Streams Logs" --> Kafka
-    BuilderContainer -- "7. Uploads Build Artifacts" --> S3
+    %% 4. Logging Data Flow
+    Kafka -- "8. Consumed by" --> LogConsumer
+    LogConsumer -- "9. Inserts logs into" --> ClickHouse
+    APIServer -- "10. Polls for logs (GET /logs/:id)" --> ClickHouse
+    ClickHouse -- "11. Returns logs" --> APIServer
+    APIServer -- "12. Sends logs to User (SSE/Polling)" --> User
 
-    %% Logging Flow
-    Kafka --> KafkaConsumer
-    KafkaConsumer -- "8. Pushes Logs" --> ClickHouse
-    APIServer -- "9. Polls for Logs" --> ClickHouse
-    ClickHouse -- "10. Returns Logs" --> APIServer
-    APIServer -- "11. Sends Logs to User" --> User
-
-    %% Serving the Deployed Application
-    User -- "12. Accesses Deployed App URL" --> ProxyServer
-    ProxyServer -- "13. Fetches Content" --> S3
-    S3 -- "14. Serves Content" --> ProxyServer
-    ProxyServer -- "15. Returns Content to User" --> User
-
-    %% Linking S3 buckets to clarify their roles
-    linkStyle 6 stroke-width:2px,fill:none,stroke:green;
-    linkStyle 11 stroke-width:2px,fill:none,stroke:blue;
-    S3 --- S3_Deployed
+    %% 5. Serving the Deployed Application
+    User -- "13. Visits app-url.com" --> ProxyServer
+    ProxyServer -- "14. Fetches static files from" --> S3
+    S3 -- "15. Serves files to" --> ProxyServer
+    ProxyServer -- "16. Returns content to User" --> User
+```
