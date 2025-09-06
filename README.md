@@ -1,3 +1,8 @@
+
+<img width="1000" height="600" alt="ChatGPT Image Sep 6, 2025, 04_17_17 PM" src="https://github.com/user-attachments/assets/5f363223-e33e-48f9-9240-0cd78eb9ad9c" />
+
+---
+
 # 🚀 GithubRepo-DeploymentApp
 
 A lightweight deployment system inspired by **Vercel**, built with **Node.js, AWS ECS, S3, ECR, Docker, Prisma, Kafka, Clickhouse, Postgres**.  
@@ -40,4 +45,3 @@ Users can access their deployed application through a proxy server, while build 
 ---
 
 
-<img width="1000" height="600" alt="ChatGPT Image Sep 6, 2025, 04_17_17 PM" src="https://github.com/user-attachments/assets/5f363223-e33e-48f9-9240-0cd78eb9ad9c" />
