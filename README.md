@@ -38,3 +38,68 @@ Users can access their deployed application through a proxy server, while build 
 5. Build logs are published to **kafka**, and then stored in real time in **clickhouse**
 
 ---
+
+
+graph TD
+    subgraph User Interaction
+        User[👨‍💻 User]
+    end
+
+    subgraph API & Orchestration
+        APIServer[🌐 API Server (Node.js)]
+        ECS[⚙️ AWS ECS (Fargate)]
+        ECR[📦 AWS ECR]
+    end
+
+    subgraph Build & Deployment
+        subgraph "ECS Task (Ephemeral)"
+            direction LR
+            BuilderContainer[🔧 Builder Container]
+        end
+        GitHub[☁️ GitHub]
+        S3[🗂️ AWS S3 (Artifacts)]
+    end
+
+    subgraph Logging Pipeline
+        Kafka[🔴 Kafka (Log Stream)]
+        KafkaConsumer[ Verbraucher]
+        ClickHouse[💾 ClickHouse (Log Storage)]
+    end
+
+    subgraph Serving Deployed App
+        ProxyServer[🔄 Proxy Server]
+        S3_Deployed[🗂️ AWS S3 (Deployed App)]
+    end
+
+    %% User to API
+    User -- "1. Submits GitHub URL" --> APIServer
+
+    %% API to ECS
+    APIServer -- "2. Triggers ECS Task" --> ECS
+
+    %% ECS, ECR, and the Builder
+    ECS -- "3. Pulls Image" --> ECR
+    ECS -- "4. Runs Container" --> BuilderContainer
+
+    %% Builder's Workflow
+    BuilderContainer -- "5. Clones Repo" --> GitHub
+    BuilderContainer -- "6. Streams Logs" --> Kafka
+    BuilderContainer -- "7. Uploads Build Artifacts" --> S3
+
+    %% Logging Flow
+    Kafka --> KafkaConsumer
+    KafkaConsumer -- "8. Pushes Logs" --> ClickHouse
+    APIServer -- "9. Polls for Logs" --> ClickHouse
+    ClickHouse -- "10. Returns Logs" --> APIServer
+    APIServer -- "11. Sends Logs to User" --> User
+
+    %% Serving the Deployed Application
+    User -- "12. Accesses Deployed App URL" --> ProxyServer
+    ProxyServer -- "13. Fetches Content" --> S3
+    S3 -- "14. Serves Content" --> ProxyServer
+    ProxyServer -- "15. Returns Content to User" --> User
+
+    %% Linking S3 buckets to clarify their roles
+    linkStyle 6 stroke-width:2px,fill:none,stroke:green;
+    linkStyle 11 stroke-width:2px,fill:none,stroke:blue;
+    S3 --- S3_Deployed
